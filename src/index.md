@@ -648,8 +648,11 @@ render()
 display(container.node())
 ```
 
+### Source Code
+[Repo](https://github.com/TylerNP/CSC477-Assignment5)
+
 ### References
 
-[D3 Choropleth](https://observablehq.com/@d3/choropleth/2)
-[D3 Zoom & Pan](https://observablehq.com/@d3/zoom-to-bounding-box)
-[zipdecode](https://www.benfry.com/zipdecode/)
+- [D3 Choropleth](https://observablehq.com/@d3/choropleth/2)
+- [D3 Zoom & Pan](https://observablehq.com/@d3/zoom-to-bounding-box)
+- [zipdecode](https://www.benfry.com/zipdecode/)
