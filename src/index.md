@@ -109,6 +109,7 @@ const layout = container.append("div")
     .style("display", "flex")
     .style("gap", "0px")
     .style("align-items", "start")
+    .style("width", "100%")
 
 const mapPanel = layout.append("div")
     .style("width", "75%")
@@ -117,6 +118,7 @@ const chartPanel = layout.append("div")
     .style("width", "25%")
     .style("display", "flex")
     .style("flex-direction", "column")
+    .style("min-width", "0")
 
 const mapSvg = mapPanel.append("svg")
     .attr("viewBox", [0, 0, mapWidth, mapHeight])
@@ -406,7 +408,7 @@ function render() {
         stickerChartSvg,
         selectedRows,
         ["inStateStickerPrice", "outOfStateStickerPrice"],
-        `Tuiton price in ${scopeTitle}`
+        `Tuition price in ${scopeTitle}`
     )
 
     drawLineChart(
@@ -648,7 +650,9 @@ function zoomed(event) {
 }
 
 mapSvg.call(zoom).on("dblclick.zoom", null)
-render()
+requestAnimationFrame(() => {
+  render()
+})
 display(container.node())
 ```
 
