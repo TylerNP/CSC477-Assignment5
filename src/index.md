@@ -133,6 +133,8 @@ mapSvg.append("rect")
 
 const stickerChartSvg = chartPanel.append("svg")
     .attr("viewBox", [0, 0, chartWidth, chartHeight])
+    .attr("width", chartWidth)
+    .attr("height", chartHeight)
     .style("width", "100%")
     .style("height", "auto")
 
@@ -143,6 +145,8 @@ stickerChartSvg.append("rect")
 
 const netChartSvg = chartPanel.append("svg")
     .attr("viewBox", [0, 0, chartWidth, chartHeight])
+    .attr("width", chartWidth)
+    .attr("height", chartHeight)
     .style("width", "100%")
     .style("height", "auto")
 
