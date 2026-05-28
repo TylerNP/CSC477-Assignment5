@@ -62,7 +62,7 @@ const visWidth = width * 0.9
 const visHeight = 7 / 16 * visWidth
 
 const mapWidth = visWidth * 0.75
-const mapHeight = visHeight
+const mapHeight = visHeight * 0.9
 
 const chartWidth = visWidth * 0.25
 const chartHeight = visHeight / 2
@@ -76,12 +76,28 @@ const zoom = d3.zoom()
     .on("zoom", zoomed)
 
 const container = d3.create("div")
+    .on("pointerdown keydown input change wheel", dismissHint)
 
-const control = container.append("div")
+const topPanel = container.append("div")
+    .style("display", "flex")
+    .style("align-items", "center")
+    .style("width", "100%")
+    .style("height", "auto")
+
+const control = topPanel.append("div")
     .style("display", "flex")
     .style("align-items", "center")
     .style("gap", "8px")
+    .style("width", "75%")
     .style("margin-bottom", "12px")
+
+const textPanel = topPanel.append("div")
+    .style("width", "25%")
+    .style("margin-left", "10px")
+    .style("margin-bottom", "12px")
+    
+const text = textPanel.append("text")
+    .text("Select a school / county to get a specific chart")
 
 const mode = control.append("select")
     .style("width", "20%")
@@ -159,6 +175,32 @@ netChartSvg.append("rect")
 
 const zoomLayer = mapSvg.append("g")
 
+const hint = mapSvg.append("g")
+    .attr("transform", "translate(16, 20)")
+    .style("pointer-events", "none")
+
+hint.append("rect")
+    .attr("width", 270)
+    .attr("height", 48)
+    .attr("rx", 8)
+    .attr("fill", "white")
+    .attr("stroke", "#999")
+    .attr("opacity", 0.9)
+
+hint.append("text")
+    .attr("x", 12)
+    .attr("y", 20)
+    .attr("font-size", 12)
+    .attr("fill", "black")
+    .text("Click points/counties to select")
+
+hint.append("text")
+    .attr("x", 12)
+    .attr("y", 38)
+    .attr("font-size", 11)
+    .attr("fill", "black")
+    .text("Scroll to zoom · drag to pan · click map to reset")
+
 const legend = mapSvg.append("g")
     .attr("transform", `translate(${mapWidth * 0.7}, 20)`)
 
@@ -169,38 +211,38 @@ const breaks = [d0, ...thresholds, d1]
 const blockWidth = legendWidth / color.range().length
 
 legend.append("text")
-  .attr("x", 0)
-  .attr("y", -8)
-  .attr("fill", "black")
-  .attr("font-size", 12)
-  .attr("font-weight", "bold")
-  .text("Average net price")
+    .attr("x", 0)
+    .attr("y", -8)
+    .attr("fill", "black")
+    .attr("font-size", 12)
+    .attr("font-weight", "bold")
+    .text("Average net price")
 
 legend.selectAll("rect")
-  .data(color.range())
-  .join("rect")
-  .attr("x", (d, i) => i * blockWidth)
-  .attr("y", 0)
-  .attr("stroke", "black")
-  .attr("width", blockWidth)
-  .attr("height", legendHeight)
-  .attr("fill", d => d)
+    .data(color.range())
+    .join("rect")
+    .attr("x", (d, i) => i * blockWidth)
+    .attr("y", 0)
+    .attr("stroke", "black")
+    .attr("width", blockWidth)
+    .attr("height", legendHeight)
+    .attr("fill", d => d)
 
 const legendScale = d3.scaleLinear()
-  .domain([d0, d1])
-  .range([0, legendWidth])
+    .domain([d0, d1])
+    .range([0, legendWidth])
 
 legend.append("g")
-  .attr("transform", `translate(0, ${legendHeight})`)
-  .attr("color", "black")
-  .call(
+    .attr("transform", `translate(0, ${legendHeight})`)
+    .attr("color", "black")
+    .call(
     d3.axisBottom(legendScale)
-      .tickValues(breaks)
-      .tickFormat(d => `$${Math.round(d / 1000)}k`)
-      .tickSize(6)
-  )
-  .selectAll("text")
-  .attr("font-size", 7)
+        .tickValues(breaks)
+        .tickFormat(d => `$${Math.round(d / 1000)}k`)
+        .tickSize(6)
+    )
+    .selectAll("text")
+    .attr("font-size", 7)
 
 legend.raise()
 
@@ -226,6 +268,7 @@ const usPath = zoomLayer.append("path")
 let matchedPoints = []
 let matchedLocations = []
 let selected = null
+let hintVisible = true
 
 input.on("input", updateSearch)
 mode.on("change", updateSearch)
@@ -240,8 +283,8 @@ function updateSearch() {
         selected = null
     } else if (searchMode === "single") {
         matchedPoints = pointData.filter(d => d.name.toLowerCase().includes(query))
+        selected = matchedPoints.length === 1 ? matchedPoints[0].unitid : null
         matchedLocations = []
-        selected = null
     } else {
         matchedLocations = pointData.filter(d => 
             d.CITY?.toLowerCase().includes(query) ||
@@ -251,7 +294,8 @@ function updateSearch() {
             String(d.ZIP ?? "").padStart(5, "0").includes(query)
         )
         matchedPoints = []
-        selected = null
+        const location = matchedLocations.length > 0 && matchedLocations.every(d => d.countyFIPS === matchedLocations[0].countyFIPS)
+        selected = location ? String(matchedLocations[0].countyFIPS).padStart(5, "0") : null
     }
 
     render()
@@ -309,6 +353,22 @@ function render() {
                     if (locationSearchActive && !d.selected) return "default"
                     return "pointer"
                 })
+                .on("mouseenter", (event, d) => {
+                    const hasData = valueByCounty.get(d.id) != null
+                    if (!hasData || isSingle) return
+                    if (locationSearchActive && !d.selected) return
+
+                    d3.select(event.currentTarget)
+                        .attr("stroke-width", 1.5)
+                        .attr("stroke-opacity", 0.7)
+                        .attr("stroke", "red")
+                })
+                .on("mouseleave", (event, d) => {
+                    d3.select(event.currentTarget)
+                        .attr("stroke-width", d.selected || selected == d.id ? 1 : 0.1)
+                        .attr("stroke-opacity", 0.5)
+                        .attr("stroke", "black")
+                })
                 .on("click", (event, d) => {
                     const hasData = valueByCounty.get(d.id) != null
                     if (!hasData || isSingle) return 
@@ -330,6 +390,7 @@ function render() {
         .attr("text-anchor", "middle")
         .attr("font-size", 14)
         .attr("fill", "black")
+        .style("pointer-events", "none")
         .text(d => countyNameByFips.get(String(d.id).padStart(5, "0")))
 
     countiesPath.raise()
@@ -341,13 +402,21 @@ function render() {
             enter => enter.append("circle")
                 .attr("cx", d => us_projection([+d.LON, +d.LAT])?.[0])
                 .attr("cy", d => us_projection([+d.LON, +d.LAT])?.[1])
-                .attr("r", 3)
+                .attr("r", 3 / Math.sqrt(currentZoomK()))
                 .attr("fill", "yellow")
                 .attr("stroke", "black")
                 .attr("cursor", "pointer")
                 .on("click", schoolClicked),
             update => update
-                .attr("fill", d => d.unitid === selected ? "red" : "yellow"),
+                .attr("fill", d => d.unitid === selected ? "red" : "yellow")
+                .on("mouseenter", (event, d) => {
+                    d3.select(event.currentTarget)
+                        .attr("r", 6 / Math.sqrt(currentZoomK()))
+                })
+                .on("mouseleave", (event, d) => {
+                    d3.select(event.currentTarget)
+                        .attr("r", 3 / Math.sqrt(currentZoomK()))
+                }),
             exit => exit.remove()
         )
 
@@ -362,6 +431,7 @@ function render() {
         .attr("fill", "black")
         .attr("x", d => us_projection([+d.LON, +d.LAT])?.[0] - 10)
         .attr("y", d => us_projection([+d.LON, +d.LAT])?.[1] - 2)
+        .style("pointer-events", "none")
         .text(d => d.name)
         
     schoolLayer.raise()
@@ -489,7 +559,10 @@ function drawLineChart(svg, rows, columns, title) {
         .padding(0.5)
 
     const y = d3.scaleLinear()
-        .domain([0, d3.max(series, s => d3.max(s.values, d => d.value))])
+        .domain([
+            Math.min(0, d3.min(series, s => d3.min(s.values, d => d.value))), 
+            d3.max(series, s => d3.max(s.values, d => d.value))
+        ])
         .nice()
         .range([chartHeight - margin.bottom, margin.top])
 
@@ -596,8 +669,27 @@ function wrapText(text, content, x, maxWidth) {
     }
 }
 
+function getAutoSelection() {
+    const query = input.node().value.toLowerCase().trim()
+    const searchMode = mode.node().value
+
+    if (!query) return null
+
+    if (searchMode === "single") {
+        return matchedPoints.length === 1 ? matchedPoints[0].unitid : null
+    }
+
+    const sameCounty =
+        matchedLocations.length > 0 &&
+        matchedLocations.every(d => d.countyFIPS === matchedLocations[0].countyFIPS)
+
+    return sameCounty
+    ? String(matchedLocations[0].countyFIPS).padStart(5, "0")
+    : null
+}
+
 function reset() {
-    selected = null
+    selected = getAutoSelection()
     render()
     mapSvg.transition().duration(750).call(
         zoom.transform,
@@ -633,6 +725,10 @@ function countyClicked(event, d) {
     clicked(event, x, y, k)
 }
 
+function currentZoomK() {
+    return d3.zoomTransform(mapSvg.node()).k
+}
+
 function zoomed(event) {
     const {transform} = event
     zoomLayer.attr("transform", transform)
@@ -647,6 +743,12 @@ function zoomed(event) {
     countiesPath
         .selectAll("text")
         .attr("font-size", textSize)
+}
+
+function dismissHint() {
+    if (!hintVisible) return
+    hintVisible = false
+    hint.remove()
 }
 
 mapSvg.call(zoom).on("dblclick.zoom", null)
