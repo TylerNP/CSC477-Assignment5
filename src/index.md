@@ -71,7 +71,7 @@ const legendWidth = mapWidth * 0.2
 const legendHeight = mapHeight * 0.05
 
 const zoom = d3.zoom()
-    .scaleExtent([1, 8])
+    .scaleExtent([1, 10])
     .translateExtent([[0, 0], [mapWidth, mapHeight]])
     .on("zoom", zoomed)
 
@@ -246,6 +246,18 @@ legend.append("g")
 
 legend.raise()
 
+const tooltip = d3.select("body")
+    .append("div")
+    .attr("class", "tooltip")
+    .style("position", "absolute")
+    .style("visibility", "hidden")
+    .style("color", "black")
+    .style("background", "white")
+    .style("border", "1px solid black")
+    .style("padding", "4px 8px")
+    .style("font-size", "12px")
+    .style("pointer-events", "none")
+
 const countiesPath = zoomLayer.append("g")
 
 const schoolLayer = zoomLayer.append("g")
@@ -362,12 +374,26 @@ function render() {
                         .attr("stroke-width", 1.5)
                         .attr("stroke-opacity", 0.7)
                         .attr("stroke", "red")
+
+                    tooltip
+                        .style("visibility", "visible")
+                        .text(`${d.properties.name} County`)
+                })
+                .on("mousemove", (event, d) => {
+                    const hasData = valueByCounty.get(d.id) != null
+                    if (!hasData || isSingle) return
+                    if (locationSearchActive && !d.selected) return
+
+                    tooltip
+                        .style("left", `${event.pageX + 10}px`)
+                        .style("top", `${event.pageY - 10}px`)
                 })
                 .on("mouseleave", (event, d) => {
                     d3.select(event.currentTarget)
                         .attr("stroke-width", d.selected || selected == d.id ? 1 : 0.1)
                         .attr("stroke-opacity", 0.5)
                         .attr("stroke", "black")
+                    tooltip.style("visibility", "hidden")
                 })
                 .on("click", (event, d) => {
                     const hasData = valueByCounty.get(d.id) != null
@@ -406,17 +432,26 @@ function render() {
                 .attr("fill", "yellow")
                 .attr("stroke", "black")
                 .attr("cursor", "pointer")
-                .on("click", schoolClicked),
-            update => update
-                .attr("fill", d => d.unitid === selected ? "red" : "yellow")
+                .on("click", schoolClicked)
                 .on("mouseenter", (event, d) => {
                     d3.select(event.currentTarget)
                         .attr("r", 6 / Math.sqrt(currentZoomK()))
+                    tooltip
+                        .style("visibility", "visible")
+                        .text(d.name)
+                })
+                .on("mousemove", (event) => {
+                    tooltip
+                        .style("left", `${event.pageX + 10}px`)
+                        .style("top", `${event.pageY - 10}px`);
                 })
                 .on("mouseleave", (event, d) => {
                     d3.select(event.currentTarget)
                         .attr("r", 3 / Math.sqrt(currentZoomK()))
+                    tooltip.style("visibility", "hidden")
                 }),
+            update => update
+                .attr("fill", d => d.unitid === selected ? "red" : "yellow"),
             exit => exit.remove()
         )
 
