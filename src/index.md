@@ -62,7 +62,7 @@ const visWidth = width * 0.9
 const visHeight = 7 / 16 * visWidth
 
 const mapWidth = visWidth * 0.75
-const mapHeight = visHeight * 0.9
+const mapHeight = visHeight
 
 const chartWidth = visWidth * 0.25
 const chartHeight = visHeight / 2
