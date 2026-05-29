@@ -1,6 +1,23 @@
 # Assignment5
 
-Visualization based on [TuitonTracker](https://www.tuitiontracker.org/) data on the total cost and tuiton prices of IPEDS recognized institution. 
+## Design Decisions
+
+- A rationale for your design decisions. How did you choose your particular visual encodings and interaction techniques? What alternatives did you consider and how did you arrive at your ultimate choices?
+
+    I chose to use a choropleth horizontally concantenated with two vertically concantenated line charts. For the line charts, as it depicts temporal data, I used it particularly to depict a trend with price changes over time. Within the line charts, I used color to encode the categorical information as the position encoding was used for the qualitative and ordinal values. For the choropleth, I used it to give geographical context for the price trends shown in the line charts since each chart refers to a specific county or institution. With position and sized used by the choropleth, I used color again to encode the average net price. I used a threshold scale to encode these values as it is meant to give an overall sense, of the price in a region, since the line charts can give more specific information. 
+    
+    For the interaction, I provided selection through both a search bar and directly clicking a point or geo shape. I choose selection, since being able to pick out a specific point allows the user the ability to explore the trends in different regions or institutions with increasing levels of details when selected. Additionally, due to the size of the map, I added zooming and panning to move around the map and make some of the selections more easily clickable and visible. To increase the affordance of the interaction, I added a hint that details the map motion and changed the color of the selected points and counties. Furthermore, I changed the size or borders of objects when hovered to indicate the target and the ability to interact. 
+
+## References 
+- [TuitonTracker](https://www.tuitiontracker.org/) Data on the total cost and tuiton prices of IPEDS recognized institutions
+- [NCES](https://nces.ed.gov/programs/edge/geographic/schoollocations) Geospatial location of IPEDS institutions
+- [US-Atlas](https://github.com/topojson/us-atlas) US Topojson data 
+
+## Inspiration and Code References
+
+- [zipdecode](https://www.benfry.com/zipdecode/) Inspiration for Design
+- [D3 Choropleth](https://observablehq.com/@d3/choropleth/2) Code Reference
+- [D3 Zoom & Pan](https://observablehq.com/@d3/zoom-to-bounding-box) Code Reference
 
 # Observable Framework
 
