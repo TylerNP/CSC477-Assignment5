@@ -4,6 +4,7 @@ toc: false
 
 <div class="hero">
   <h1>The Cost of Secondary Education</h1>
+  <h3>By Tyler Pham</h3>
 </div>
 
 ```js
