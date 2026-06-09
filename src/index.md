@@ -3,7 +3,7 @@ toc: false
 ---
 
 <div class="hero">
-  <h1>The Cost of Secondary Education</h1>
+  <h1>The Cost of Post-Secondary Education</h1>
   <h3>By Tyler Pham</h3>
 </div>
 
@@ -105,7 +105,7 @@ const mode = control.append("select")
 
 const input = control.append("input")
     .attr("type", "text")
-    .attr("placeholder", "Search schools, cities, counties, zip code, or states")
+    .attr("placeholder", "Search schools by name")
     .style("width", "50%")
 
 mode.selectAll("option")
@@ -180,27 +180,25 @@ const hint = mapSvg.append("g")
     .attr("transform", "translate(16, 20)")
     .style("pointer-events", "none")
 
+const HintSingleText = [
+    {text: "Start search to reveal points", size: 14, y: 20},
+    {text: "Click points (single mode) to select", size: 12, y: 36},
+    {text: "Scroll to zoom · drag to pan · click map to reset", size: 11, y: 54}
+]
+
+const HintAggregateText = [
+    {text: "Search filters counties", size: 14, y: 20},
+    {text: "Click countes (aggregate mode) to select", size: 12, y: 36},
+    {text: "Scroll to zoom · drag to pan · click map to reset", size: 11, y: 54}
+]
+
 hint.append("rect")
-    .attr("width", 270)
-    .attr("height", 48)
+    .attr("width", 280)
+    .attr("height", 68)
     .attr("rx", 8)
     .attr("fill", "white")
     .attr("stroke", "#999")
     .attr("opacity", 0.9)
-
-hint.append("text")
-    .attr("x", 12)
-    .attr("y", 20)
-    .attr("font-size", 12)
-    .attr("fill", "black")
-    .text("Click points/counties to select")
-
-hint.append("text")
-    .attr("x", 12)
-    .attr("y", 38)
-    .attr("font-size", 11)
-    .attr("fill", "black")
-    .text("Scroll to zoom · drag to pan · click map to reset")
 
 const legend = mapSvg.append("g")
     .attr("transform", `translate(${mapWidth * 0.7}, 20)`)
@@ -281,10 +279,15 @@ const usPath = zoomLayer.append("path")
 let matchedPoints = []
 let matchedLocations = []
 let selected = null
+let hintCount = 2
 let hintVisible = true
 
 input.on("input", updateSearch)
-mode.on("change", updateSearch)
+mode.on("change", (event) => {
+    event.stopPropagation()
+    updateSearch()
+    revealHint()
+})
 
 function updateSearch() {
     const query = input.node().value.toLowerCase().trim()
@@ -296,7 +299,12 @@ function updateSearch() {
         selected = null
     } else if (searchMode === "single") {
         matchedPoints = pointData.filter(d => d.name.toLowerCase().includes(query))
+        const prev_selected = selected
         selected = matchedPoints.length === 1 ? matchedPoints[0].unitid : null
+        if (selected && selected != prev_selected) {
+            const [x, y] = us_projection([matchedPoints[0].LON, matchedPoints[0].LAT])
+            zoomToPoint(x, y, 8)
+        }
         matchedLocations = []
     } else {
         matchedLocations = pointData.filter(d => 
@@ -308,7 +316,15 @@ function updateSearch() {
         )
         matchedPoints = []
         const location = matchedLocations.length > 0 && matchedLocations.every(d => d.countyFIPS === matchedLocations[0].countyFIPS)
+        const prev_selected = selected
         selected = location ? String(matchedLocations[0].countyFIPS).padStart(5, "0") : null
+        if (selected && selected != prev_selected) {
+            const county = counties.features.filter(d => d.id === selected)[0]
+            const [[x0, y0], [x1, y1]] = path.bounds(county)
+            const k = Math.min(8, 0.9 / Math.max((x1 - x0) / mapWidth, (y1 - y0) / mapHeight))
+            const [x, y] = [(x0 + x1) / 2, (y0 + y1) / 2]
+            zoomToPoint(x, y, k)
+        }
     }
 
     render()
@@ -335,6 +351,23 @@ function render() {
         mode.node().value === "aggregate" &&
         input.node().value.trim() !== ""
 
+    input.attr("placeholder", isSingle 
+        ? "Search schools by name" 
+        : "Search schools by county, state, or zip code"
+    )
+
+    const currentHint = isSingle ? HintSingleText : HintAggregateText
+    
+    hint
+        .selectAll("text")
+        .data(currentHint)
+        .join("text")
+        .attr("x", 12)
+        .attr("fill", "black")
+        .attr("y", d => d.y)
+        .attr("font-size", d => d.size)
+        .text(d => d.text)
+
     countiesPath
         .selectAll("path")
         .data(countiesAvailable, d => d.id)
@@ -353,7 +386,7 @@ function render() {
                     const value = valueByCounty.get(d.id)
                     if (selected == d.id) return "red"
                     if (d.selected) {
-                        return value == null ? "lightgrey" : d3.color(color(value)).darker(1)
+                        return value == null ? "lightgrey" : d3.color(color(value)).darker(2)
                     }
                     return value == null ? "lightgrey" : color(value)
                 })
@@ -430,13 +463,13 @@ function render() {
                 .attr("cx", d => us_projection([+d.LON, +d.LAT])?.[0])
                 .attr("cy", d => us_projection([+d.LON, +d.LAT])?.[1])
                 .attr("r", 3 / Math.sqrt(currentZoomK()))
-                .attr("fill", "yellow")
+                .attr("fill", "#FF7F0E")
                 .attr("stroke", "black")
                 .attr("cursor", "pointer")
                 .on("click", schoolClicked)
                 .on("mouseenter", (event, d) => {
                     d3.select(event.currentTarget)
-                        .attr("r", 6 / Math.sqrt(currentZoomK()))
+                        .attr("r", 9 / Math.sqrt(currentZoomK()))
                     tooltip
                         .style("visibility", "visible")
                         .text(d.name)
@@ -452,7 +485,7 @@ function render() {
                     tooltip.style("visibility", "hidden")
                 }),
             update => update
-                .attr("fill", d => d.unitid === selected ? "red" : "yellow"),
+                .attr("fill", d => d.unitid === selected ? "red" : "#FF7F0E"),
             exit => exit.remove()
         )
 
@@ -630,11 +663,14 @@ function drawLineChart(svg, rows, columns, title) {
     svg.append("g")
         .attr("transform", `translate(0, ${chartHeight - margin.bottom})`)
         .attr("color", "black")
-        .call(d3.axisBottom(x).tickSizeOuter(0))
+        .call(d3.axisBottom(x)
+            .tickValues(x.domain().filter((d, i) => i % 2 === 0))
+            .tickSizeOuter(0)
+            .tickFormat(d => `20${d}`))
         .selectAll("text")
         .attr("font-size", 8)
-        .attr("transform", "rotate(-25)")
-        .style("text-anchor", "end")
+        .attr("transform", "rotate(-15)")
+        .style("text-anchor", "middle")
 
     svg.append("g")
         .attr("transform", `translate(${margin.left}, 0)`)
@@ -712,16 +748,28 @@ function getAutoSelection() {
     if (!query) return null
 
     if (searchMode === "single") {
-        return matchedPoints.length === 1 ? matchedPoints[0].unitid : null
+        if (matchedPoints.length === 1) {
+            const school_data = matchedPoints[0]
+            return school_data.unitid
+        }
+        return null
     }
 
     const sameCounty =
         matchedLocations.length > 0 &&
         matchedLocations.every(d => d.countyFIPS === matchedLocations[0].countyFIPS)
 
-    return sameCounty
-    ? String(matchedLocations[0].countyFIPS).padStart(5, "0")
-    : null
+    return sameCounty ? String(matchedLocations[0].countyFIPS).padStart(5, "0") : null
+}
+
+function zoomToPoint(x, y, k = 8) {
+    mapSvg.transition().duration(750).call(
+        zoom.transform,
+        d3.zoomIdentity
+            .translate(mapWidth / 2, mapHeight / 2)
+            .scale(k)
+            .translate(-x, -y)
+    )
 }
 
 function reset() {
@@ -729,32 +777,35 @@ function reset() {
     render()
     mapSvg.transition().duration(750).call(
         zoom.transform,
-        d3.zoomIdentity,
+        d3.zoomIdentity
     )
 }
 
 function clicked(event, x, y, k) {
     event.stopPropagation()
     render()
-    mapSvg.transition().duration(750).call(
-        zoom.transform,
-        d3.zoomIdentity
-            .translate(mapWidth / 2, mapHeight / 2)
-            .scale(k)
-            .translate(-x, -y),
-        d3.pointer(event, mapSvg.node())
-    )
+    zoomToPoint(x, y, 8)
 }
 
 function schoolClicked(event, d) {
+    const prev_selected = selected
     selected = d.unitid
+    if (selected == prev_selected) {
+        event.stopPropagation()
+        return
+    }
     const [x, y] = us_projection([+d.LON, +d.LAT])
     const k = 8
     clicked(event, x, y, k)
 }
 
 function countyClicked(event, d) {
+    const prev_selected = selected
     selected = d.id
+    if (selected == prev_selected) {
+        event.stopPropagation()
+        return
+    }
     const [[x0, y0], [x1, y1]] = path.bounds(d)
     const k = Math.min(8, 0.9 / Math.max((x1 - x0) / mapWidth, (y1 - y0) / mapHeight))
     const [x, y] = [(x0 + x1) / 2, (y0 + y1) / 2]
@@ -784,7 +835,14 @@ function zoomed(event) {
 function dismissHint() {
     if (!hintVisible) return
     hintVisible = false
-    hint.remove()
+    hintCount--
+    hint.style("display", "none")
+}
+
+function revealHint() {
+    if (hintVisible) return
+    hintVisible = true
+    hint.style("display", null)
 }
 
 mapSvg.call(zoom).on("dblclick.zoom", null)
